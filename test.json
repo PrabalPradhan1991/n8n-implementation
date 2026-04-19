@@ -1,0 +1,192 @@
+{
+    "name": "Gmail to Slack with MySQL Deduplication - Optimized",
+    "nodes": [
+        {
+            "parameters": {},
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                -256,
+                176
+            ],
+            "id": "1f32a3d0-bd92-4d6d-888a-c0d0f9376242",
+            "name": "When clicking ‘Execute workflow’"
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "limit": 20,
+                "filters": {
+                    "q": "from:prabalpradhan20@gmail.com"
+                }
+            },
+            "id": "2f78df70-4df6-42e2-822b-f773f3224d87",
+            "name": "Gmail",
+            "type": "n8n-nodes-base.gmail",
+            "typeVersion": 2,
+            "position": [
+                -32,
+                160
+            ],
+            "credentials": {
+                "gmailOAuth2": {
+                    "id": "HS1JbZj2VZxSpJKA",
+                    "name": "Gmail account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "=SELECT '{{ $json.id }}' AS messageId, '{{ $json.snippet.replace(/'/g, \"''\") }}' AS snippet, '{{ $json.from.value[0].address }}' AS fromAddress, EXISTS (SELECT 1 FROM email_logs WHERE messageId = '{{ $json.id }}') AS already_exists;"
+            },
+            "id": "7eff4718-dd53-45e3-ae71-4b49a138337e",
+            "name": "Check if Exists",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 1,
+            "position": [
+                820,
+                240
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "2fHIMnt05TO6YlyV",
+                    "name": "MySQL account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ !!$json.already_exists }}",
+                            "value2": "={{ false }}"
+                        }
+                    ]
+                }
+            },
+            "id": "feb9b095-1e4b-4f79-a319-0db75221fe7e",
+            "name": "Is New Message?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1040,
+                240
+            ]
+        },
+        {
+            "parameters": {
+                "table": {
+                    "__rl": true,
+                    "value": "email_logs",
+                    "mode": "name"
+                },
+                "columns": "messageId",
+                "options": {},
+                "valuesToSend": {
+                    "values": [
+                        {
+                            "column": "messageId",
+                            "value": "={{ $json.messageId }}"
+                        }
+                    ]
+                }
+            },
+            "id": "be4ce6eb-1490-44d2-98c6-1ad3631eb312",
+            "name": "Save Message ID",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 1,
+            "position": [
+                1260,
+                140
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "2fHIMnt05TO6YlyV",
+                    "name": "MySQL account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "channel": "crm-test-channel",
+                "text": "=New Email from {{ $json.fromAddress }}:\n\n{{ $json.snippet }}",
+                "otherOptions": {},
+                "attachments": []
+            },
+            "id": "5a13c2aa-ab92-46c0-97c9-65229bdee130",
+            "name": "Forward to Slack",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 1,
+            "position": [
+                1480,
+                140
+            ],
+            "credentials": {
+                "slackApi": {
+                    "id": "PpZoYFumID0OlQ0J",
+                    "name": "Slack account 2"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "When clicking ‘Execute workflow’": {
+            "main": [
+                [
+                    {
+                        "node": "Gmail",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gmail": {
+            "main": [
+                [
+                    {
+                        "node": "Check if Exists",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check if Exists": {
+            "main": [
+                [
+                    {
+                        "node": "Is New Message?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is New Message?": {
+            "main": [
+                [],
+                [
+                    {
+                        "node": "Save Message ID",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Save Message ID": {
+            "main": [
+                [
+                    {
+                        "node": "Forward to Slack",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

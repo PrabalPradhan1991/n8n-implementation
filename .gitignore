@@ -1,0 +1,7 @@
+.env
+volumes/mariadb-data/**
+!volumes/mariadb-data/.gitkeep
+volumes/n8n_storage/**
+!volumes/n8n_storage/.gitkeep
+volumes/postgres-data/**
+!volumes/postgres-data/.gitkeep
